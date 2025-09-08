@@ -12,7 +12,7 @@ from .conv import Conv, DWConv, GhostConv, LightConv, RepConv
 
 
 __all__ = ('DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', 'C3x', 'C3TR', 'C3Ghost',
-           'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3')
+           'GhostBottleneck', 'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3', 'C2fG', 'Bottleneck2')
 
 
 class DFL(nn.Module):
@@ -303,3 +303,73 @@ class BottleneckCSP(nn.Module):
         y1 = self.cv3(self.m(self.cv1(x)))
         y2 = self.cv2(x)
         return self.cv4(self.act(self.bn(torch.cat((y1, y2), 1))))
+
+
+class C2fG(nn.Module):
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
+        """Initialize CSP bottleneck layer with two convolutions with arguments ch_in, ch_out, number, shortcut, groups,
+        expansion.
+        """
+        super().__init__()
+        self.c = int(c2 * e)  # hidden channels
+        self.cv1 = Conv(c1, 2 * self.c, 1, 1)
+        self.cv2 = Conv((2 + n) * self.c, c2, 1)  # optional act=FReLU(c2)
+        self.m = nn.Sequential(*(GhostBottleneck(self.c, self.c) for _ in range(n)))
+
+    def forward(self, x):
+        """Forward pass through C2f layer."""
+        y = list(self.cv1(x).chunk(2, 1))
+        y.extend(m(y[-1]) for m in self.m)
+        return self.cv2(torch.cat(y, 1))
+
+    def forward_split(self, x):
+        """Forward pass using split() instead of chunk()."""
+        y = list(self.cv1(x).split((self.c, self.c), 1))
+        y.extend(m(y[-1]) for m in self.m)
+        return self.cv2(torch.cat(y, 1))
+
+class Bottleneck2(nn.Module):
+    expansion = 4
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, head_conv=1):
+        super(Bottleneck2, self).__init__()
+        # 2d 1*1
+        if head_conv == 1:
+            self.conv1 = nn.Conv3d(inplanes, planes, kernel_size=1, bias=False,dilation=2)
+            self.bn1 = nn.BatchNorm3d(planes)
+
+        #3d 1*1
+        elif head_conv == 3:
+            self.conv1 = nn.Conv3d(inplanes, planes, kernel_size=(3, 1, 1), bias=False, padding=(2, 0, 0),dilation=2)
+            self.bn1 = nn.BatchNorm3d(planes)
+        else:
+            raise ValueError("Unsupported head_conv!")
+        self.conv2 = nn.Conv3d(
+            planes, planes, kernel_size=(1, 3, 3), stride=(1,stride,stride), padding=(0, 2, 2), bias=False,dilation=2)
+        self.bn2 = nn.BatchNorm3d(planes)
+        self.conv3 = nn.Conv3d(planes, planes * 4, kernel_size=1, bias=False,dilation=2)
+        self.bn3 = nn.BatchNorm3d(planes * 4)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+        out += residual
+        out = self.relu(out)
+
+        return out

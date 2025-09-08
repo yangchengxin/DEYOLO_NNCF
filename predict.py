@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import time as time
 
 # Load a model
-model = YOLO("runs/detect/train23/weights/deyolo_pruned.pt") # trained weights
+model = YOLO("runs/detect/train/weights/best.pt") # trained weights
 
 # Perform object detection on RGB and IR image
 start = time.time()

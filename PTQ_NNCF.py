@@ -1,3 +1,11 @@
+# -*- coding: UTF-8 -*-
+"""
+  @Author: ycx
+  @Date  : 2025/9/8 16:26
+  @Email : <ycx97124@163.com>
+  @version V1.0
+"""
+
 import os
 import nncf
 import torch
