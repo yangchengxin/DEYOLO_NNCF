@@ -44,6 +44,21 @@ model.predict([["ultralytics/assets/vi_1.png", "ultralytics/assets/ir_1.png"], #
 ```
 
 ### NNCF quantize
+在进行nncf量化之前，我们需要先将我们的pt模型转成onnx模型，直接克隆[DEYOLO](https://github.com/chips96/DEYOLO/issues/24?reload=1)仓库然后导出onnx时会报错，这里我们需要进行如下修改，
+进入到yolo/engine/exporter.py中，找到export_onnx模块，然后将其按照如下修改：
+```python
+torch.onnx.export(
+    self.model.cpu() if dynamic else self.model,  # --dynamic only compatible with cpu
+    (self.im.cpu() if dynamic else self.im, self.im2.cpu() if dynamic else self.im2),
+    f,
+    verbose=False,
+    opset_version=11,
+    do_constant_folding=True,  # WARNING: DNN inference with torch>=1.12 may require do_constant_folding=False
+    input_names=['images','images1'],
+    output_names=output_names,
+    dynamic_axes=dynamic or None)
+```
+
 * PTQ：使用PTQ_NNCF.py脚本即可完成int8量化，需要准备校准数据集，使用的是ultralytics中的dataloader。
 ```python
 def create_data_source():
