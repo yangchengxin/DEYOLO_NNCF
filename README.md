@@ -1,9 +1,15 @@
 ## Document
 ### Recommended Environment
 
-- [x] torch 1.13.0
-- [x] torchvision 0.14.0
-- [x] numpy 1.25.0
+- [x] torch 1.12.0
+- [x] torchvision 0.13.0
+- [x] numpy 1.24.5
+- [x] nncf 2.13.0
+- [x] openvino 2024.4.0
+- [x] openvino-dev 2024.4.0
+- [x] openvino-telemetry 2025.2.0
+- [x] onnx 1.16.1
+
 
 ### Train
 You can choose DEYOLO's n/s/m/l/x model in [DEYOLO.yaml](./ultralytics/models/v8/DEYOLO.yaml)
