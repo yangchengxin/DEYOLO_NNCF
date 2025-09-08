@@ -1,0 +1,51 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# === PyTorch / OpenVINO ===
+*.pth
+*.pt
+*.onnx
+*.xml
+*.bin
+*.mapping
+
+# === 用户自定义：训练和运行时产生 ===
+_openvino_model/
+runs/
+run/
+output/
+logs/
+*.log
+*.ckpt
+
+# === 数据集（不推送到仓库） ===
+dataset/
+datasets/
+data/
+*.zip
+*.tar
+*.tar.gz
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === 临时文件 ===
+*.tmp
+*.temp
+*.bak
+.cache/
