@@ -1,50 +1,53 @@
 # -*- coding: UTF-8 -*-
 """
   @Author: ycx
-  @Date  : 2025/9/8 16:26
+  @Date  : 2025/9/9 14:25
   @Email : <ycx97124@163.com>
   @version V1.0
 """
 
 import cv2
+import yaml
 import torch
+import argparse
 import requests
 import numpy as np
 import openvino as ov
 from pathlib import Path
-from ultralytics.yolo.engine.predictor import BasePredictor
-from ultralytics.yolo.v8.detect import DetectionPredictor
-from ultralytics.yolo.utils import DEFAULT_CFG, ROOT, ops
+from ultralytics.yolo.utils import DEFAULT_CFG_PATH, ROOT, ops
 from ultralytics.yolo.engine.results import Results
 
+# ---------- 1. 读外部 YAML ----------
+ext_cfg_path = Path(DEFAULT_CFG_PATH)          # 你的外部配置文件
+with open(ext_cfg_path, encoding='utf-8') as f:
+    ext_cfg = yaml.safe_load(f)
 
-class OV_DetectionPredictor(BasePredictor):
-    def __init__(self, args, model_names, device='CPU'):
-        super().__init__(args)
-        self.device = device
-        self.model_names = model_names
-        self.input_size = (args.imgsz, args.imgsz)  # 假设正方形
+# 取出想要的字段（带默认值）
+max_det     = ext_cfg.get('max_det', 300)
+conf        = ext_cfg.get('conf', 0.25)
+iou         = ext_cfg.get('iou', 0.7)
+agnostic    = ext_cfg.get('agnostic', False)
+classes     = ext_cfg.get('classes', None)
 
-    def postprocess(self, preds, img, orig_imgs):
-        preds = torch.from_numpy(preds).to(self.device, dtype=torch.float32)
-        preds = ops.non_max_suppression(
-            preds, self.args.conf, self.args.iou,
-            agnostic=self.args.agnostic_nms, max_det=self.args.max_det,
-            classes=self.args.classes)
+def postprocess(preds, img, orig_imgs, **kwargs):
+    overrides = {
+        "iou_thres": iou,
+        "max_det": max_det,
+        "agnostic" : agnostic,
+        "classes": classes,
+    }
+    overrides.update(kwargs)
 
-        results = []
-        orig_imgs = orig_imgs if isinstance(orig_imgs, list) else [orig_imgs]
-        paths = self.batch[0] if isinstance(self.batch[0], list) else [self.batch[0]]
-
-        for i, pred in enumerate(preds):
-            orig_img = orig_imgs[i]
-            if len(pred):
-                pred[:, :4] = ops.scale_boxes(self.input_size, pred[:, :4], orig_img.shape)
-            results.append(Results(orig_img=orig_img,
-                                   path=paths[i],
-                                   names=self.model_names,
-                                   boxes=pred))
-        return results
+    preds = torch.from_numpy(preds).float().cpu()
+    preds = ops.non_max_suppression(preds, **overrides)
+    results = []
+    for i, pred in enumerate(preds):
+        orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
+        if not isinstance(orig_imgs, torch.Tensor):
+            pred[:, :4] = ops.scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
+        pred = pred.cpu().detach().numpy()
+        results.append(pred)
+    return results
 
 def letterbox(img, new_shape=(640, 640), color=114, auto=True, stride=32):
     """
@@ -90,13 +93,18 @@ def preprocess(img:np.ndarray, new_shape:tuple=(640, 640), color:int=114, auto:b
     return im_padded
 
 if __name__ == "__main__":
-    model_path = r"D:\ycx_git_repositories\DEYOLO_NNCF\DEYOLO\runs\detect\train\weights\INT8_openvino_model\model.xml"  # 同目录下要求有 best.bin
-    device = "CPU"  # 或 "GPU" / "AUTO"
+    parser = argparse.ArgumentParser(description='DEYOLO openvino inference *o*')
+    parser.add_argument('--vi_input', default=r"D:\company_Tenda\35.DEYOLO\dataset\images\vis_train\00000.png", type=str, help='input vi image')
+    parser.add_argument('--ir_input', default=r"D:\company_Tenda\35.DEYOLO\dataset\images\ir_train\00000.png", type=str, help='input ir image')
+    parser.add_argument('--model_path', default=r"D:\ycx_git_repositories\DEYOLO_NNCF\DEYOLO\runs\detect\train\weights\INT8_openvino_model\model.xml", type=str, help='xml model path')
+    parser.add_argument('--device', default='CPU', type=str, help='CPU, GPU, AUTO, MULTI:CPU,GPU, HETERO:CPU,GPU')
+    parser.add_argument('--conf_thres', default=0.1, type=float, help='object confidence threshold')
+    args = parser.parse_args()
 
     # ---- ① 加载 & 编译 ----
     core = ov.Core()
-    model = core.read_model(model_path)
-    compiled = core.compile_model(model, device)
+    model = core.read_model(args.model_path)
+    compiled = core.compile_model(model, args.device)
 
     # ---- 打印输入输出节点名称 ----
     print("模型输入名称：")
@@ -112,9 +120,9 @@ if __name__ == "__main__":
     inp_dtype_ir = compiled.input("images").get_element_type().to_dtype()
 
     # ---- ③ 造随机输入（替换成你的图像预处理） ----
-    im_vi = cv2.imread(r"D:\company_Tenda\35.DEYOLO\dataset\images\ir_train\00000.png", cv2.IMREAD_COLOR)
+    im_vi = cv2.imread(args.vi_input, cv2.IMREAD_COLOR)
     im_vi_padded = preprocess(im_vi, new_shape=(inp_shape_vi[2], inp_shape_vi[3], inp_dtype_vi), auto=False, type=inp_dtype_ir)
-    im_ir = cv2.imread(r"D:\company_Tenda\35.DEYOLO\dataset\images\ir_train\00000.png", cv2.IMREAD_COLOR)
+    im_ir = cv2.imread(args.ir_input, cv2.IMREAD_COLOR)
     im_ir_padded = preprocess(im_ir, new_shape=(inp_shape_ir[2], inp_shape_ir[3], inp_dtype_ir), auto=False, type=inp_dtype_ir)
 
     # ---- ④ 同步推理 ----
@@ -124,6 +132,14 @@ if __name__ == "__main__":
     # ---- ⑤ 取出输出 ----
     out0 = infer_req.get_output_tensor(0).data  # NumPy ndarray
 
-    results = OV_DetectionPredictor().postprocess(out0, im_vi_padded, [im_vi])
+    results = postprocess(out0, im_vi_padded, [im_vi], conf_thres=0.1)
+
+    for result in results:
+        for out in result.astype(np.int32):
+            x1, y1, x2, y2 = out[0:4]
+            cv2.rectangle(im_vi, (x1, y1), (x2, y2), color=(255, 0, 0), thickness=2)
+
+    cv2.imshow("images", im_vi)
+    cv2.waitKey(0)
     print(results)
 
