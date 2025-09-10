@@ -59,7 +59,7 @@ torch.onnx.export(
     dynamic_axes=dynamic or None)
 ```
 
-* PTQ：使用PTQ_NNCF.py脚本即可完成int8量化，需要准备校准数据集，使用的是ultralytics中的dataloader。
+* PTQ (implicit)：使用PTQ_NNCF_implicit(v2).py脚本即可完成int8量化，需要准备校准数据集，使用的是ultralytics中的dataloader。
 ```python
 def create_data_source():
     from ultralytics.yolo.engine.trainer import BaseTrainer
@@ -139,7 +139,24 @@ class CalibrationDataset:
         return {"images": img_vis.astype(np.float32) / 255.0, "images1": img_ir.astype(np.float32) / 255.0}
 ```
 
-* QAT
+* PTQ (explicit): 使用PTQ_NNCF_explicit.py脚本即可完成int8量化，插入了QDQ节点进行显示量化。这里需要注意的是，使用项目自带的model直接进行推理时
+会有一个两个输入的报错，由于ultralytics使用的是nn.Sequential()来构建的网络，是无法直接接受两个输入的，因此我在[DEYOLO_net.py](./DEYOLO_net.py)中实现了可以直接接收两个输入的模型框架。
+
+```python
+ # dont work🤡🤡
+DEYOLO_ = YOLO(r"your model yaml path")
+model = DEYOLO_.model.model
+...
+_ = model(input1, input2)
+
+# work 😍😍
+from DEYOLO_net import DEYOLO 
+model = DEYOLO()
+...
+_ = model(input1, input2)
+```
+
+* QAT (敬请期待)
 
 
 ## Dataset
