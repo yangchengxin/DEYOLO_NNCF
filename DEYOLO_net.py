@@ -1,3 +1,11 @@
+# -*- coding: UTF-8 -*-
+"""
+  @Author: ycx
+  @Date  : 2025/9/9 14:53
+  @Email : <ycx97124@163.com>
+  @version V1.0
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

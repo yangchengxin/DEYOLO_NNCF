@@ -5,6 +5,7 @@
   @Email : <ycx97124@163.com>
   @version V1.0
 """
+
 from email.policy import strict
 
 import torch
