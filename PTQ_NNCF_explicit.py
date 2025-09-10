@@ -94,6 +94,8 @@ if __name__ == '__main__':
     # -------------------------------------------------
     # 5. 载入 FP32 模型并跑校准
     # -------------------------------------------------
+    # DEYOLO_ = YOLO(r"D:\ycx_git_repositories\DEYOLO_NNCF\DEYOLO\ultralytics\models\v8\DEYOLO.yaml")
+    # model = DEYOLO_.model.model
     model = DEYOLO(nc=80)
 
     checkpoint = torch.load(r'D:\ycx_git_repositories\DEYOLO_NNCF\DEYOLO\runs\detect\train\weights\best.pt', map_location='cpu')
