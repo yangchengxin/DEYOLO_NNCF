@@ -17,6 +17,7 @@ import nncf
 from ultralytics import YOLO
 from PTQ_NNCF_implicit import create_data_source, transform_fn
 from DEYOLO_net import DEYOLO
+import openvino
 
 # -------------------------------------------------
 # 1. 滑动平均校准器
@@ -125,5 +126,19 @@ if __name__ == '__main__':
     torch.onnx.export(model, dummy_input, 'best_int8_explicit.onnx',
                       opset_version=11,
                       do_constant_folding=False,   # 保留 Q/DQ 节点
-                      input_names=['images1', 'images2'],
+                      input_names=['images', 'images1'],
                       output_names=['output0'])
+
+    # -------------------------------------------------
+    # 7. 将带QDQ节点的onnx使用nncf导出成openvino推理使用的int8模型
+    # -------------------------------------------------
+    INT8_dir = "./int8"
+    print(f"Export onnx to openvino INT8 IR to:{INT8_dir}")
+    nncf_calibration_dataset = nncf.Dataset(data_source, transform_fn)
+    model_int8 = openvino.convert_model('best_int8_explicit.onnx')
+    quantized_model = nncf.quantize(
+        model_int8,
+        nncf_calibration_dataset,
+        subset_size=100,  # 使用1000个样本进行校正
+    )
+    openvino.save_model(quantized_model, f"{INT8_dir}/model.xml", compress_to_fp16=False)
