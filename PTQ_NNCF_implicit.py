@@ -27,8 +27,8 @@ def create_data_source():
     args = dict(model=model, data=data, device=device)
     trainer = DetectionTrainer(overrides=DEFAULT_CFG)
     trainer.setup_model()
-    vis_dir = r"D:\company_Tenda\35.DEYOLO\DEYOLO\dataset\images\vis_train"
-    inf_dir = r"D:\company_Tenda\35.DEYOLO\DEYOLO\dataset\images\ir_train"
+    vis_dir = r"D:\company_Tenda\35.DEYOLO\dataset\images\vis_train"
+    inf_dir = r"D:\company_Tenda\35.DEYOLO\dataset\images\ir_train"
     dataloader = trainer.get_dataloader(
         dataset_path = vis_dir,
         dataset_path2 = inf_dir,
