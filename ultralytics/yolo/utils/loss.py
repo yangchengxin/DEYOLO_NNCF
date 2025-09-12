@@ -106,12 +106,14 @@ class KeypointLoss(nn.Module):
 # Criterion class for computing Detection training losses
 class v8DetectionLoss:
 
-    def __init__(self, model):  # model must be de-paralleled
+    def __init__(self, model, ycxNet:bool = False):  # model must be de-paralleled
 
         device = next(model.parameters()).device  # get model device
         h = model.args  # hyperparameters
-
-        m = model.model[-1]  # Detect() module
+        if ycxNet == True:
+            m = model.head
+        else:
+            m = model.model[-1]  # Detect() module
         self.bce = nn.BCEWithLogitsLoss(reduction='none')
         self.hyp = h
         self.stride = m.stride  # model strides

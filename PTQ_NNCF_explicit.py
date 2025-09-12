@@ -98,47 +98,61 @@ if __name__ == '__main__':
     # DEYOLO_ = YOLO(r"D:\ycx_git_repositories\DEYOLO_NNCF\DEYOLO\ultralytics\models\v8\DEYOLO.yaml")
     # model = DEYOLO_.model.model
     model = DEYOLO(nc=80)
+    # for name, module in model.named_children():
+    #     print(name, module.__class__.__name__)
+
 
     checkpoint = torch.load(r'D:\ycx_git_repositories\DEYOLO_NNCF\DEYOLO\runs\detect\train\weights\best.pt', map_location='cpu')
+
+    load_keys = set(checkpoint['model'].state_dict().keys())  # 文件里的键
+    own_keys = set(model.state_dict().keys())  # 你当前网络的键
+
+    missing = own_keys - load_keys
+    extra = load_keys - own_keys
+
+    print('缺失的键（网络有但文件没有）:', missing)
+    print('多余的键（文件有但网络没有）:', extra)
+
     # 提取模型的 state_dict
     if isinstance(checkpoint, dict) and 'model' in checkpoint:
         state_dict = checkpoint['model'].state_dict()
+        print(state_dict.keys())
     else:
         state_dict = checkpoint.state_dict()
 
     model.load_state_dict(state_dict, strict=False)   # 你的 FP32 权重
     model.eval()
-    add_fake_quant(model)
-
-    # 跑 100 张图即可完成校准
-    for i, img in enumerate(data_source):   # img: tensor [N,3,H,W]
-        with torch.no_grad():
-            _ = model(img['img'].to(torch.float32), img['img2'].to(torch.float32))
-        if i >= 99:
-            break
-
-    # -------------------------------------------------
-    # 6. 导出带 Q/DQ 的 ONNX（显式量化）
-    # -------------------------------------------------
-    vi_input = torch.randn(1, 3, 640, 640)
-    ir_input = torch.randn(1, 3, 640, 640)
-    dummy_input = (vi_input, ir_input)
-    torch.onnx.export(model, dummy_input, 'best_int8_explicit.onnx',
-                      opset_version=11,
-                      do_constant_folding=False,   # 保留 Q/DQ 节点
-                      input_names=['images', 'images1'],
-                      output_names=['output0'])
-
-    # -------------------------------------------------
-    # 7. 将带QDQ节点的onnx使用nncf导出成openvino推理使用的int8模型
-    # -------------------------------------------------
-    INT8_dir = "./int8"
-    print(f"Export onnx to openvino INT8 IR to:{INT8_dir}")
-    nncf_calibration_dataset = nncf.Dataset(data_source, transform_fn)
-    model_int8 = openvino.convert_model('best_int8_explicit.onnx')
-    quantized_model = nncf.quantize(
-        model_int8,
-        nncf_calibration_dataset,
-        subset_size=100,  # 使用1000个样本进行校正
-    )
-    openvino.save_model(quantized_model, f"{INT8_dir}/model.xml", compress_to_fp16=False)
+    # # add_fake_quant(model)
+    #
+    # # 跑 100 张图即可完成校准
+    # for i, img in enumerate(data_source):   # img: tensor [N,3,H,W]
+    #     with torch.no_grad():
+    #         _ = model(img['img'].to(torch.float32), img['img2'].to(torch.float32))
+    #     if i >= 99:
+    #         break
+    #
+    # # -------------------------------------------------
+    # # 6. 导出带 Q/DQ 的 ONNX（显式量化）
+    # # -------------------------------------------------
+    # vi_input = torch.randn(1, 3, 640, 640)
+    # ir_input = torch.randn(1, 3, 640, 640)
+    # dummy_input = (vi_input, ir_input)
+    # torch.onnx.export(model, dummy_input, 'best_int8_explicit.onnx',
+    #                   opset_version=11,
+    #                   do_constant_folding=False,   # 保留 Q/DQ 节点
+    #                   input_names=['images', 'images1'],
+    #                   output_names=['output0'])
+    #
+    # # -------------------------------------------------
+    # # 7. 将带QDQ节点的onnx使用nncf导出成openvino推理使用的int8模型
+    # # -------------------------------------------------
+    # INT8_dir = "./int8"
+    # print(f"Export onnx to openvino INT8 IR to:{INT8_dir}")
+    # nncf_calibration_dataset = nncf.Dataset(data_source, transform_fn)
+    # model_int8 = openvino.convert_model('best_int8_explicit.onnx')
+    # quantized_model = nncf.quantize(
+    #     model_int8,
+    #     nncf_calibration_dataset,
+    #     subset_size=100,  # 使用1000个样本进行校正
+    # )
+    # openvino.save_model(quantized_model, f"{INT8_dir}/model.xml", compress_to_fp16=False)

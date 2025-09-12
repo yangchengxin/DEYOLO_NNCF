@@ -28,6 +28,10 @@ class BaseModel(nn.Module):
     """
     The BaseModel class serves as a base class for all the models in the Ultralytics YOLO family.
     """
+    def __init__(self, ycxNet:bool = False):
+        super(BaseModel, self).__init__()
+        self.ycxNet = ycxNet
+
 
     def forward(self, x1, x2, *args, **kwargs):
         """
@@ -43,7 +47,10 @@ class BaseModel(nn.Module):
         """
         if isinstance(x1, dict) and isinstance(x2, dict):  # for cases of training and validating while training.
             return self.loss(x1, x2, *args, **kwargs)
-        return self.predict(x1, x2, *args, **kwargs)
+        if self.ycxNet == True:
+            return self.DEYOLO_forward(x1, x2)
+        else:
+            return self.predict(x1, x2, *args, **kwargs)
 
     def predict(self, x1, x2, profile=False, visualize=False, augment=False):
         """
@@ -195,7 +202,10 @@ class BaseModel(nn.Module):
             A model that is a Detect() object.
         """
         self = super()._apply(fn)
-        m = self.model[-1]  # Detect()
+        if self.ycxNet == True:
+            m = self.head
+        else:
+            m = self.model[-1]  # Detect()
         if isinstance(m, Detect):
             m.stride = fn(m.stride)
             m.anchors = fn(m.anchors)

@@ -83,6 +83,7 @@ class BaseTrainer:
             cfg (str, optional): Path to a configuration file. Defaults to DEFAULT_CFG.
             overrides (dict, optional): Configuration overrides. Defaults to None.
         """
+        self.ycxNet = False
         self.args = get_cfg(cfg, overrides)
         self.device = select_device(self.args.device, self.args.batch)
         self.check_resume()
@@ -90,6 +91,7 @@ class BaseTrainer:
         self.model = None
         self.metrics = None
         self.plots = {}
+        self.stride = None
         init_seeds(self.args.seed + 1 + RANK, deterministic=self.args.deterministic)
 
         # Dirs
@@ -254,7 +256,11 @@ class BaseTrainer:
             self.model = DDP(self.model, device_ids=[RANK], find_unused_parameters=True)
 
         # Check imgsz
-        gs = max(int(self.model.stride.max() if hasattr(self.model, 'stride') else 32), 32)  # grid size (max stride)
+        if self.ycxNet == True:
+            gs = max(int(self.stride.max() if hasattr(self.model, 'stride') else 32),
+                     32)  # grid size (max stride)
+        else:
+            gs = max(int(self.model.stride.max() if hasattr(self.model, 'stride') else 32), 32)  # grid size (max stride)
         self.args.imgsz = check_imgsz(self.args.imgsz, stride=gs, floor=gs, max_dim=1)
 
         # Batch size

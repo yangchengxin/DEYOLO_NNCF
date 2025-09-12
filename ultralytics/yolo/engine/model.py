@@ -15,6 +15,8 @@ from ultralytics.yolo.utils.checks import check_file, check_imgsz, check_pip_upd
 from ultralytics.yolo.utils.downloads import GITHUB_ASSET_STEMS
 from ultralytics.yolo.utils.torch_utils import smart_inference_mode, intersect_dicts
 # Map head to model, trainer, validator, and predictor classes
+from DEYOLO_net import DEYOLO
+
 TASK_MAP = {
     'detect': [
         DetectionModel, yolo.v8.detect.DetectionTrainer, yolo.v8.detect.DetectionValidator,
@@ -62,7 +64,7 @@ class YOLO:
         list(ultralytics.yolo.engine.results.Results): The prediction results.
     """
 
-    def __init__(self, model: Union[str, Path] = 'yolov8n.pt', task=None) -> None:
+    def __init__(self, model: Union[str, Path] = 'yolov8n.pt', task=None, ycxNet:bool=False, nc:int = 80) -> None:
         """
         Initializes the YOLO model.
 
@@ -81,6 +83,7 @@ class YOLO:
         self.overrides = {}  # overrides for trainer object
         self.metrics = None  # validation/training metrics
         self.session = None  # HUB session
+        self.ycxNet = ycxNet
         model = str(model).strip()  # strip spaces
 
         # Check if Ultralytics HUB model from https://hub.ultralytics.com
@@ -95,6 +98,8 @@ class YOLO:
             model, suffix = Path(model).with_suffix('.pt'), '.pt'  # add suffix, i.e. yolov8n -> yolov8n.pt
         if suffix == '.yaml':
             self._new(model, task)
+        elif suffix == '.net':
+            self._mynet(nc=nc)
         else:
             self._load(model, task)
 
@@ -114,6 +119,38 @@ class YOLO:
             model.startswith('https://hub.ultralytics.com/models/'),  # i.e. https://hub.ultralytics.com/models/MODEL_ID
             [len(x) for x in model.split('_')] == [42, 20],  # APIKEY_MODELID
             len(model) == 20 and not Path(model).exists() and all(x not in model for x in './\\')))  # MODELID
+
+    def bias_init(self):
+        import math
+        """Initialize Detect() biases, WARNING: requires stride availability."""
+        m = self  # self.model[-1]  # Detect() module
+        # cf = torch.bincount(torch.tensor(np.concatenate(dataset.labels, 0)[:, 0]).long(), minlength=nc) + 1
+        # ncf = math.log(0.6 / (m.nc - 0.999999)) if cf is None else torch.log(cf / cf.sum())  # nominal class frequency
+        for a, b, s in zip(m.cv2, m.cv3, m.stride):  # from
+            a[-1].bias.data[:] = 1.0  # box
+            b[-1].bias.data[:m.nc] = math.log(5 / m.nc / (640 / s) ** 2)  # cls (.01 objects, 80 classes, 640 img)
+
+
+    def _mynet(self, nc:int):
+        from ultralytics.nn.modules import Detect
+        from ultralytics.yolo.utils.torch_utils import initialize_weights
+
+        self.model = DEYOLO(nc = nc)
+        self.task = 'detect'
+
+        # calculate stride
+        m = self.model.head
+        ch1 = 3
+        ch2 = 3
+        if isinstance(m, Detect):
+            s = 256
+            forward = lambda x1, x2 : self.model.DEYOLO_forward(x1, x2)
+            m.stride = torch.tensor(
+                [s / x.shape[-2] for x in forward(torch.zeros(1, ch1, s, s), torch.zeros(1, ch2, s, s))]
+            )
+            self.stride = m.stride
+            m.bias_init()
+        initialize_weights(self.model)
 
     def _new(self, cfg: str, task=None, verbose=True):
         """
@@ -336,11 +373,14 @@ class YOLO:
         self.task = overrides.get('task') or self.task
 
         self.trainer = TASK_MAP[self.task][1](overrides=overrides, _callbacks=self.callbacks)
-        if not overrides.get('resume'):  # manually set model only if not resuming
+        if not overrides.get('resume') and self.ycxNet == False:  # manually set model only if not resuming
             self.trainer.model = self.trainer.get_model(weights=self.model if self.ckpt else None, cfg=self.model.yaml)
             self.model = self.trainer.model              # 注释掉了上三行
+        else:
+            self.trainer.stride = self.stride
 
-        # self.trainer.model = self.model    # 添加代码
+        self.trainer.ycxNet = self.ycxNet
+        self.trainer.model = self.model    # 添加代码
         self.trainer.hub_session = self.session  # attach optional HUB session    # 注释掉了
         self.trainer.train()
         # Update model and cfg after training

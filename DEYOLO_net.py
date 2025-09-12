@@ -9,6 +9,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ultralytics.nn import BaseModel
 
 from ultralytics.nn.modules import (AIFI, C1, C2, C3, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C2f, C3Ghost, C3x,
                                     Concat, Conv, Conv2, ConvTranspose, Detect, DWConv, DWConvTranspose2d, Focus,
@@ -20,9 +21,9 @@ from ultralytics.yolo.utils.plotting import feature_visualization
 from ultralytics.yolo.utils.torch_utils import (fuse_conv_and_bn, fuse_deconv_and_bn, initialize_weights,
                                                 intersect_dicts, make_divisible, model_info, scale_img, time_sync)
 
-class DEYOLO(nn.Module):
+class DEYOLO(BaseModel):
     def __init__(self, nc:int = 80, depth_ratio:float = 0.33, width_ratio:float = 0.25, reg_max:int = 16):
-        super(DEYOLO, self).__init__()
+        super(DEYOLO, self).__init__(ycxNet=True)
         self.save = []
 
         # ---- backbone1-vi ---- #                                 feature map idx/stride
@@ -76,7 +77,7 @@ class DEYOLO(nn.Module):
         # ---- head ---- #
         self.head  = Detect(nc = nc, ch =[64, 128, 256])                  # 35 detect head (p3 p4 p5)
 
-    def forward(self, x1, x2):
+    def DEYOLO_forward(self, x1, x2):
         # ---- vis feature ---- #
         out0 = self.cv1(x1)
         out1 = self.cv2(out0)
@@ -128,6 +129,8 @@ class DEYOLO(nn.Module):
 
         return out35
 
+    def init_criterion(self):
+        return v8DetectionLoss(self, ycxNet = True)
 
 
 
