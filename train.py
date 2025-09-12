@@ -3,7 +3,7 @@ from ultralytics import YOLO
 if __name__ == '__main__':
     # ------------------------------------ train ------------------------------ #
     # Load a model
-    model = YOLO(r"D:\ycx_git_repositories\DEYOLO_NNCF\DEYOLO\ultralytics\models\v8\DEYOLO.net", ycxNet=True, nc = 6)
+    model = YOLO(r"DEYOLO.net", ycxNet=True, nc = 6)
 
     # Train the model
     train_results = model.train(

@@ -12,7 +12,7 @@
 
 
 ### Train
-You can choose DEYOLO's n/s/m/l/x model in [DEYOLO.yaml](./ultralytics/models/v8/DEYOLO.yaml)
+You can choose DEYOLO's n/s/m/l/x model in [DEYOLO.yaml](./ultralytics/models/v8/DEYOLO.yaml).
 
 ```python
 from ultralytics import YOLO
@@ -27,6 +27,25 @@ train_results = model.train(
     imgsz=640,  # training image size
     device="cpu",  # device to run on, i.e. device=0 or device=0,1,2,3 or device=cpu
 )
+```
+
+或者你也可以使用我定义的DEYOLO_net的网络来训练，只需要在实例化一个YOLO对象的时候入参变成".net"后缀名即可，目前还只能实现n模型的训练，以及还没有实现加载预训练模型训练，后期我会继续添加进去:
+```python
+from ultralytics import YOLO
+
+if __name__ == '__main__':
+    # ------------------------------------ train ------------------------------ #
+    # Load a model
+    model = YOLO(r"DEYOLO.net", ycxNet=True, nc = 6)
+
+    # Train the model
+    train_results = model.train(
+        data="M3FD.yaml",  # path to dataset YAML
+        epochs=10,  # number of training epochs
+        imgsz=640,  # training image size
+        device=0,  # device to run on, i.e. device=0 or device=0,1,2,3 or device=cpu
+    )
+    # ------------------------------------ train ------------------------------ #
 ```
 
 ### Predict
