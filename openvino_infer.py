@@ -7,6 +7,7 @@
 """
 
 import cv2
+import time
 import yaml
 import torch
 import argparse
@@ -96,7 +97,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='DEYOLO openvino inference *o*')
     parser.add_argument('--vi_input', default=r"D:\company_Tenda\35.DEYOLO\dataset\images\vis_train\00000.png", type=str, help='input vi image')
     parser.add_argument('--ir_input', default=r"D:\company_Tenda\35.DEYOLO\dataset\images\ir_train\00000.png", type=str, help='input ir image')
-    parser.add_argument('--model_path', default=r"D:\ycx_git_repositories\DEYOLO_quantize\DEYOLO\runs\detect\train9\weights\INT8_openvino_model\model.xml", type=str, help='xml model path')
+    parser.add_argument('--model_path', default=r"D:\ycx_git_repositories\DEYOLO_quantize\DEYOLO\runs\detect\train9\weights\FP32_openvino_model\model.xml", type=str, help='xml model path')
     parser.add_argument('--device', default='CPU', type=str, help='CPU, GPU, AUTO, MULTI:CPU,GPU, HETERO:CPU,GPU')
     parser.add_argument('--conf_thres', default=0.1, type=float, help='object confidence threshold')
     args = parser.parse_args()
@@ -127,19 +128,23 @@ if __name__ == "__main__":
 
     # ---- ④ 同步推理 ----
     infer_req = compiled.create_infer_request()
-    infer_req.infer({"images": im_vi_padded, "images1": im_ir_padded})  # key=0 或 input 名称均可
+    while True:
+        t0 = time.perf_counter()  # 起点
+        infer_req.infer({"images": im_vi_padded, "images1": im_ir_padded})  # key=0 或 input 名称均可
+        ms = (time.perf_counter() - t0) * 1000
+        print(f"耗时: {ms:.3f} ms")
 
-    # ---- ⑤ 取出输出 ----
-    out0 = infer_req.get_output_tensor(0).data  # NumPy ndarray
-
-    results = postprocess(out0, im_vi_padded, [im_vi], conf_thres=0.1)
-
-    for result in results:
-        for out in result.astype(np.int32):
-            x1, y1, x2, y2 = out[0:4]
-            cv2.rectangle(im_vi, (x1, y1), (x2, y2), color=(255, 0, 0), thickness=2)
-
-    cv2.imshow("images", im_vi)
-    cv2.waitKey(0)
-    print(results)
+    # # ---- ⑤ 取出输出 ----
+    # out0 = infer_req.get_output_tensor(0).data  # NumPy ndarray
+    #
+    # results = postprocess(out0, im_vi_padded, [im_vi], conf_thres=0.1)
+    #
+    # for result in results:
+    #     for out in result.astype(np.int32):
+    #         x1, y1, x2, y2 = out[0:4]
+    #         cv2.rectangle(im_vi, (x1, y1), (x2, y2), color=(255, 0, 0), thickness=2)
+    #
+    # cv2.imshow("images", im_vi)
+    # cv2.waitKey(0)
+    # print(results)
 
