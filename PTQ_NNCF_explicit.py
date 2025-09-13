@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # -------------------------------------------------
     # DEYOLO_ = YOLO(r"D:\ycx_git_repositories\DEYOLO_NNCF\DEYOLO\ultralytics\models\v8\DEYOLO.yaml")
     # model = DEYOLO_.model.model
-    model = DEYOLO(nc=80)
+    model = DEYOLO(nc = 6)
     # for name, module in model.named_children():
     #     print(name, module.__class__.__name__)
 

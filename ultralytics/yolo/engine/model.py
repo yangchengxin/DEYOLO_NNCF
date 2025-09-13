@@ -345,7 +345,7 @@ class YOLO:
             overrides['batch'] = 1  # default to 1 if not modified
         args = get_cfg(cfg=DEFAULT_CFG, overrides=overrides)
         args.task = self.task
-        return Exporter(overrides=args, _callbacks=self.callbacks)(model=self.model)
+        return Exporter(overrides=args, _callbacks=self.callbacks, ycxNet = self.ycxNet)(model=self.model)
 
     def train(self, **kwargs):
         """

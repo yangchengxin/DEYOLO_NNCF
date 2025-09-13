@@ -1,4 +1,8 @@
+from torch.ao.quantization import prepare_qat
+
 from ultralytics import YOLO
+import torch
+from torch.quantization import get_default_qconfig, prepare_qat, convert
 
 if __name__ == '__main__':
     # ------------------------------------ train ------------------------------ #

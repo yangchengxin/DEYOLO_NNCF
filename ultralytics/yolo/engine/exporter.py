@@ -129,7 +129,7 @@ class Exporter:
         save_dir (Path): Directory to save results.
     """
 
-    def __init__(self, cfg=DEFAULT_CFG, overrides=None, _callbacks=None):
+    def __init__(self, cfg=DEFAULT_CFG, overrides=None, _callbacks=None, ycxNet:bool = False):
         """
         Initializes the Exporter class.
 
@@ -138,6 +138,7 @@ class Exporter:
             overrides (dict, optional): Configuration overrides. Defaults to None.
             _callbacks (list, optional): List of callback functions. Defaults to None.
         """
+        self.ycxNet = ycxNet
         self.args = get_cfg(cfg, overrides)
         self.callbacks = _callbacks or callbacks.get_default_callbacks()
         callbacks.add_integration_callbacks(self)
@@ -186,7 +187,7 @@ class Exporter:
             p.requires_grad = False
         model.eval()
         model.float()
-        model = model.fuse()
+        model = model.fuse(ycxNet=self.ycxNet)
         for k, m in model.named_modules():
             if isinstance(m, Detect):  # Segment and Pose use Detect base class
                 m.dynamic = self.args.dynamic
@@ -214,7 +215,7 @@ class Exporter:
         self.file = file
         self.output_shape = tuple(y.shape) if isinstance(y, torch.Tensor) else \
             tuple(tuple(x.shape if isinstance(x, torch.Tensor) else []) for x in y)
-        self.pretty_name = Path(self.model.yaml.get('yaml_file', self.file)).stem.replace('yolo', 'YOLO')
+        self.pretty_name = Path(self.model.yaml.get('yaml_file', self.file) if hasattr(self.model, 'yaml_file') else 'DEYOLO_ycx').stem.replace('yolo', 'YOLO')
         trained_on = f'trained on {Path(self.args.data).name}' if self.args.data else '(untrained)'
         description = f'Ultralytics {self.pretty_name} model {trained_on}'
         self.metadata = {

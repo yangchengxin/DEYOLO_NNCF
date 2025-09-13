@@ -56,7 +56,7 @@ class BaseValidator:
         save_dir (Path): Directory to save results.
     """
 
-    def __init__(self, dataloader=None, save_dir=None, pbar=None, args=None, _callbacks=None):
+    def __init__(self, dataloader=None, save_dir=None, pbar=None, args=None, _callbacks=None, ycxNet:bool = False):
         """
         Initializes a BaseValidator instance.
 
@@ -76,6 +76,7 @@ class BaseValidator:
         self.training = True
         self.speed = {'preprocess': 0.0, 'inference': 0.0, 'loss': 0.0, 'postprocess': 0.0}
         self.jdict = None
+        self.ycxNet = ycxNet
 
         project = self.args.project or Path(SETTINGS['runs_dir']) / self.args.task
         name = self.args.name or f'{self.args.mode}'

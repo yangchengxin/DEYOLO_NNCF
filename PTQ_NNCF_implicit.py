@@ -51,10 +51,10 @@ def transform_fn(batch):
 #如果不加__main__限制的化，就会无限递归创建子进程，进而报错。于是import的时候使用 name == “main” 保护起来就可以了。
 if __name__ == "__main__":
     data_yaml = r"D:\company_Tenda\35.DEYOLO\DEYOLO\ultralytics\yolo\cfg\M3FD.yaml"
-    MODEL_PATH = r"D:\company_Tenda\35.DEYOLO\DEYOLO\runs\detect\train\weights\best.onnx"
-    FP32_dir = r"D:\company_Tenda\35.DEYOLO\DEYOLO\runs\detect\train\weights\FP32_openvino_model"
-    FP16_dir = r"D:\company_Tenda\35.DEYOLO\DEYOLO\runs\detect\train\weights\FP16_openvino_model"
-    INT8_dir = r"D:\company_Tenda\35.DEYOLO\DEYOLO\runs\detect\train\weights\INT8_openvino_model"
+    MODEL_PATH = r"D:\ycx_git_repositories\DEYOLO_quantize\DEYOLO\runs\detect\train9\weights\best.onnx"
+    FP32_dir = r"D:\ycx_git_repositories\DEYOLO_quantize\DEYOLO\runs\detect\train9\weights\FP32_openvino_model"
+    FP16_dir = r"D:\ycx_git_repositories\DEYOLO_quantize\DEYOLO\runs\detect\train9\weights\FP16_openvino_model"
+    INT8_dir = r"D:\ycx_git_repositories\DEYOLO_quantize\DEYOLO\runs\detect\train9\weights\INT8_openvino_model"
 
     for it in [FP32_dir, FP16_dir, INT8_dir]:
         if not os.path.exists(it):

@@ -96,7 +96,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='DEYOLO openvino inference *o*')
     parser.add_argument('--vi_input', default=r"D:\company_Tenda\35.DEYOLO\dataset\images\vis_train\00000.png", type=str, help='input vi image')
     parser.add_argument('--ir_input', default=r"D:\company_Tenda\35.DEYOLO\dataset\images\ir_train\00000.png", type=str, help='input ir image')
-    parser.add_argument('--model_path', default=r"D:\ycx_git_repositories\DEYOLO_NNCF\DEYOLO\int8\model.xml", type=str, help='xml model path')
+    parser.add_argument('--model_path', default=r"D:\ycx_git_repositories\DEYOLO_quantize\DEYOLO\runs\detect\train9\weights\INT8_openvino_model\model.xml", type=str, help='xml model path')
     parser.add_argument('--device', default='CPU', type=str, help='CPU, GPU, AUTO, MULTI:CPU,GPU, HETERO:CPU,GPU')
     parser.add_argument('--conf_thres', default=0.1, type=float, help='object confidence threshold')
     args = parser.parse_args()

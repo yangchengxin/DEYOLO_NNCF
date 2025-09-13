@@ -47,7 +47,7 @@ class BaseModel(nn.Module):
         """
         if isinstance(x1, dict) and isinstance(x2, dict):  # for cases of training and validating while training.
             return self.loss(x1, x2, *args, **kwargs)
-        if self.ycxNet == True:
+        if hasattr(self, "ycxNet") and self.ycxNet == True:
             return self.DEYOLO_forward(x1, x2)
         else:
             return self.predict(x1, x2, *args, **kwargs)
@@ -140,7 +140,7 @@ class BaseModel(nn.Module):
         if c:
             LOGGER.info(f"{sum(dt):10.2f} {'-':>10s} {'-':>10s}  Total")
 
-    def fuse(self, verbose=True):
+    def fuse(self, verbose=True, ycxNet:bool = False):
         """
         Fuse the `Conv2d()` and `BatchNorm2d()` layers of the model into a single layer, in order to improve the
         computation efficiency.
@@ -149,21 +149,38 @@ class BaseModel(nn.Module):
             (nn.Module): The fused model is returned.
         """
         if not self.is_fused():
-            for m in self.model.modules():
-                if isinstance(m, (Conv, Conv2, DWConv)) and hasattr(m, 'bn'):
-                    if isinstance(m, Conv2):
+            if ycxNet == False:
+                for m in self.model.modules():
+                    if isinstance(m, (Conv, Conv2, DWConv)) and hasattr(m, 'bn'):
+                        if isinstance(m, Conv2):
+                            m.fuse_convs()
+                        m.conv = fuse_conv_and_bn(m.conv, m.bn)  # update conv
+                        delattr(m, 'bn')  # remove batchnorm
+                        m.forward = m.forward_fuse  # update forward
+                    if isinstance(m, ConvTranspose) and hasattr(m, 'bn'):
+                        m.conv_transpose = fuse_deconv_and_bn(m.conv_transpose, m.bn)
+                        delattr(m, 'bn')  # remove batchnorm
+                        m.forward = m.forward_fuse  # update forward
+                    if isinstance(m, RepConv):
                         m.fuse_convs()
-                    m.conv = fuse_conv_and_bn(m.conv, m.bn)  # update conv
-                    delattr(m, 'bn')  # remove batchnorm
-                    m.forward = m.forward_fuse  # update forward
-                if isinstance(m, ConvTranspose) and hasattr(m, 'bn'):
-                    m.conv_transpose = fuse_deconv_and_bn(m.conv_transpose, m.bn)
-                    delattr(m, 'bn')  # remove batchnorm
-                    m.forward = m.forward_fuse  # update forward
-                if isinstance(m, RepConv):
-                    m.fuse_convs()
-                    m.forward = m.forward_fuse  # update forward
-            self.info(verbose=verbose)
+                        m.forward = m.forward_fuse  # update forward
+                self.info(verbose=verbose)
+            else:
+                for m in self.modules():
+                    if isinstance(m, (Conv, Conv2, DWConv)) and hasattr(m, 'bn'):
+                        if isinstance(m, Conv2):
+                            m.fuse_convs()
+                        m.conv = fuse_conv_and_bn(m.conv, m.bn)  # update conv
+                        delattr(m, 'bn')  # remove batchnorm
+                        m.forward = m.forward_fuse  # update forward
+                    if isinstance(m, ConvTranspose) and hasattr(m, 'bn'):
+                        m.conv_transpose = fuse_deconv_and_bn(m.conv_transpose, m.bn)
+                        delattr(m, 'bn')  # remove batchnorm
+                        m.forward = m.forward_fuse  # update forward
+                    if isinstance(m, RepConv):
+                        m.fuse_convs()
+                        m.forward = m.forward_fuse  # update forward
+                self.info(verbose=verbose)
 
         return self
 
@@ -202,7 +219,7 @@ class BaseModel(nn.Module):
             A model that is a Detect() object.
         """
         self = super()._apply(fn)
-        if self.ycxNet == True:
+        if hasattr(self, "ycxNet") and self.ycxNet == True:
             m = self.head
         else:
             m = self.model[-1]  # Detect()
@@ -251,7 +268,7 @@ class DetectionModel(BaseModel):
                  verbose=True):  # model, input channels, number of classes
         super().__init__()
         self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
-
+        self.ycxNet = False
         # Define model
         ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
         ch2 = self.yaml['ch'] = self.yaml.get('ch', ch2)  # input channels
@@ -376,7 +393,7 @@ def torch_safe_load(weight):
         return torch.load(file, map_location='cpu'), file  # load
 
 
-def attempt_load_weights(weights, device=None, inplace=True, fuse=False):
+def attempt_load_weights(weights, device=None, inplace=True, fuse=False, ycxNet:bool = True):
     """Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a."""
 
     ensemble = Ensemble()
@@ -393,7 +410,7 @@ def attempt_load_weights(weights, device=None, inplace=True, fuse=False):
             model.stride = torch.tensor([32.])
 
         # Append
-        ensemble.append(model.fuse().eval() if fuse and hasattr(model, 'fuse') else model.eval())  # model in eval mode
+        ensemble.append(model.fuse(ycxNet=ycxNet).eval() if fuse and hasattr(model, 'fuse') else model.eval())  # model in eval mode
 
     # Module compatibility updates
     for m in ensemble.modules():
