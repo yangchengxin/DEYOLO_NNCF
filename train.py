@@ -8,6 +8,7 @@ if __name__ == '__main__':
     # ------------------------------------ train ------------------------------ #
     # Load a model
     model = YOLO(r"DEYOLO.net", ycxNet=True, nc = 6)
+    # model = YOLO(r"yolov8n.pt")
 
     # Train the model
     train_results = model.train(

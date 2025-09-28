@@ -111,6 +111,7 @@ class v8DetectionLoss:
         device = next(model.parameters()).device  # get model device
         h = model.args  # hyperparameters
         if ycxNet == True:
+
             m = model.head
         else:
             m = model.model[-1]  # Detect() module
@@ -149,7 +150,12 @@ class v8DetectionLoss:
         """Decode predicted object bounding box coordinates from anchor points and distribution."""
         if self.use_dfl:
             b, a, c = pred_dist.shape  # batch, anchors, channels
-            pred_dist = pred_dist.view(b, a, 4, c // 4).softmax(3).matmul(self.proj.type(pred_dist.dtype))
+
+            device = pred_dist.device  # 获取 pred_dist 的设备
+            proj = self.proj.to(device).type(pred_dist.dtype)  # 同时转换设备和数据类型
+            pred_dist = pred_dist.view(b, a, 4, c // 4).softmax(3).matmul(proj)
+
+            # pred_dist = pred_dist.view(b, a, 4, c // 4).softmax(3).matmul(self.proj.type(pred_dist.dtype))
             # pred_dist = pred_dist.view(b, a, c // 4, 4).transpose(2,3).softmax(3).matmul(self.proj.type(pred_dist.dtype))
             # pred_dist = (pred_dist.view(b, a, c // 4, 4).softmax(2) * self.proj.type(pred_dist.dtype).view(1, 1, -1, 1)).sum(2)
         return dist2bbox(pred_dist, anchor_points, xywh=False)

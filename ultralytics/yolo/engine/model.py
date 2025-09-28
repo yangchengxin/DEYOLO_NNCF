@@ -180,6 +180,8 @@ class YOLO:
             weights (str): model checkpoint to be loaded
             task (str | None): model task
         """
+        from ultralytics.nn.modules import Detect
+
         suffix = Path(weights).suffix
         if suffix == '.pt':
             self.model, self.ckpt = attempt_load_one_weight(weights)
@@ -191,6 +193,20 @@ class YOLO:
             self.model, self.ckpt = weights, None
             self.task = task or guess_model_task(weights)
             self.ckpt_path = weights
+        if self.ycxNet == True:
+            self.model.train()
+            # calculate stride
+            m = self.model.head
+            ch1 = 3
+            ch2 = 3
+            if isinstance(m, Detect):
+                s = 256
+                forward = lambda x1, x2: self.model.DEYOLO_forward(x1, x2)
+                m.stride = torch.tensor(
+                    [s / x.shape[-2] for x in forward(torch.zeros(1, ch1, s, s), torch.zeros(1, ch2, s, s))]
+                )
+                self.stride = m.stride
+                m.bias_init()
         self.overrides['model'] = weights
         self.overrides['task'] = self.task
 

@@ -25,6 +25,7 @@ class DEYOLO(BaseModel):
     def __init__(self, nc:int = 80, depth_ratio:float = 0.33, width_ratio:float = 0.25, reg_max:int = 16):
         super(DEYOLO, self).__init__(ycxNet=True)
         self.save = []
+        self.args = None
 
         # ---- backbone1-vi ---- #                                 feature map idx/stride
         self.cv1    = Conv(c1 = 3, c2 = 16, k = 3, s = 2)                 # 0 p1/2            1 * 3 * 640 * 640  -> 1 * 16 * 320 * 320
