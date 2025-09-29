@@ -10,7 +10,7 @@ import os
 import nncf
 import torch
 import openvino
-from nncf import quantize
+from nncf import quantize, QuantizationPreset, DropType, CompressWeightsMode
 from nncf import compress_weights
 from ultralytics import YOLO
 
@@ -89,16 +89,46 @@ if __name__ == "__main__":
     data_source = create_data_source()
     nncf_calibration_dataset = nncf.Dataset(data_source, transform_fn)
     model_int8 = openvino.convert_model(MODEL_PATH)
+
+    # ----------------------------------------- #
+    # mixed： 追求精度
+    # performance： 追求速度
+    # ----------------------------------------- #
+
+    # 速度为主导的量化
     quantized_model = quantize(
         model_int8,
         nncf_calibration_dataset,
         subset_size=10,  # 使用1000个样本进行校正
+        preset=QuantizationPreset.MIXED,
+        # preset=QuantizationPreset.PERFORMANCE
     )
+
+    # 精度为主导的量化
+    # quantized_model_ = nncf.quantize_with_accuracy_control(
+    #     model_int8,
+    #     calibration_dataset=nncf_calibration_dataset,
+    #     validation_data=nncf_calibration_dataset,
+    #     # validation_fn 需要自己实现一下
+    #     validation_fn=validation_fn,
+    #     max_drop=0.1,
+    #     drop_type=DropType.RELATIVE,
+    #     subset_size=128,
+    #     preset=QuantizationPreset.MIXED,
+    #     # 300-1000较为合适
+    #     advanced_accuracy_restorer_parameters=nncf.AdvancedAccuracyRestorerParameters(ranking_subset_size=25),
+    # )
+
     openvino.save_model(quantized_model, f"{INT8_dir}/model.xml", compress_to_fp16=False)
 
     # ----------------------------------------- 导出int8精度的模型，使用直接映射的方式 ----------------------------------------- #
+    # 将权重不对称压缩到8bit
+    compressed_weights_8bit = compress_weights(model_fp32, mode=CompressWeightsMode.INT8_ASYM)
+    # 将权重对称压缩到8bit
+    compressed_weights_8bit_SYM = compress_weights(model_fp32, mode=CompressWeightsMode.INT8_SYM)
+    # 还有INT4以及NF4的，一般不会用，可以在nncf仓库中自行学习。
+    openvino.save_model(compressed_weights_8bit, f"{INT8_dir}/model.xml", compress_to_fp16=False)
 
-    # 待补充
 
     # ----------------------------------------- validate ----------------------------------------- #
     ov_model = YOLO(r"D:\company_Tenda\35.DEYOLO\DEYOLO\runs\detect\train\weights\INT8_openvino_model")
